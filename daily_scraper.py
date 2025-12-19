@@ -17,19 +17,21 @@ def fetch_todays_prices():
         table = soup.find('table')
         
         new_data = []
-        today = datetime.now().strftime("%Y-%m-%d")
+        today_str = datetime.now().strftime("%d/%m/%Y") # Matches your CSV format: DD/MM/YYYY
         
         for row in table.find_all('tr')[1:]:
             cols = row.find_all('td')
             if len(cols) > 3:
                 symbol = cols[0].text.strip()
                 try:
+                    # Clean price (remove commas)
                     price = float(cols[2].text.strip().replace(',', ''))
-                    # Append new row matching the CSV structure
+                    
+                    # Create row matching your historical CSV structure
                     new_data.append({
-                        'Date': today,
-                        'Symbol': symbol,
-                        'Close': price
+                        'Date': today_str,  # Matches "Daily Date" parsing logic in app.py
+                        'Symbol': symbol,   # Matches "Share Code" logic
+                        'Close': price      # Matches "Closing Price" logic
                     })
                 except ValueError:
                     continue
@@ -41,22 +43,33 @@ def fetch_todays_prices():
 def update_csv():
     # Only try to update if the master file exists (created by app.py)
     if os.path.exists(DATA_FILE):
-        existing_df = pd.read_csv(DATA_FILE)
-        todays_df = fetch_todays_prices()
-        
-        if not todays_df.empty:
-            # Avoid duplicates: remove today's date if it already exists
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            existing_df = existing_df[existing_df['Date'] != today_str]
+        try:
+            existing_df = pd.read_csv(DATA_FILE)
+            todays_df = fetch_todays_prices()
             
-            # Combine
-            updated_df = pd.concat([existing_df, todays_df], ignore_index=True)
-            updated_df = updated_df.sort_values(['Date', 'Symbol'])
-            
-            updated_df.to_csv(DATA_FILE, index=False)
-            print(f"Updated data for {today_str}")
-        else:
-            print("No new data found today.")
+            if not todays_df.empty:
+                # Convert 'Date' to datetime for comparison
+                # Note: app.py standardizes everything to 'Date', 'Symbol', 'Close'
+                # so we stick to that schema for the master file.
+                
+                # Check if today is already in the file to avoid dupes
+                today_dt = pd.to_datetime(datetime.now().date())
+                
+                if 'Date' in existing_df.columns:
+                    existing_df['Date'] = pd.to_datetime(existing_df['Date'])
+                    existing_df = existing_df[existing_df['Date'] != today_dt]
+                
+                # Combine
+                updated_df = pd.concat([existing_df, todays_df], ignore_index=True)
+                updated_df['Date'] = pd.to_datetime(updated_df['Date']) # Ensure datetime
+                updated_df = updated_df.sort_values(['Date', 'Symbol'])
+                
+                updated_df.to_csv(DATA_FILE, index=False)
+                print(f"Updated data with {len(todays_df)} new rows.")
+            else:
+                print("No new data found today.")
+        except Exception as e:
+            print(f"Failed to update CSV: {e}")
     else:
         print("Master CSV not found. The Streamlit app needs to run at least once to create it from seeds.")
 
