@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import os
 import glob
+from pathlib import Path
 
 # =============================================================================
 # CONFIGURATION
@@ -22,8 +23,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-SEEDS_FOLDER = "seeds"
+# Get the directory where this script is located
+SCRIPT_DIR = Path(__file__).parent.resolve()
+SEEDS_FOLDER = SCRIPT_DIR / "seeds"
 MASTER_FILE = "gse_master_data.csv"
+
+# Debug: Show path info (remove after confirming it works)
+# st.sidebar.write(f"Script dir: {SCRIPT_DIR}")
+# st.sidebar.write(f"Seeds folder: {SEEDS_FOLDER}")
+# st.sidebar.write(f"Exists: {SEEDS_FOLDER.exists()}")
 
 # Column mappings from raw CSV
 COL_MAP = {
@@ -50,11 +58,11 @@ def load_all_data():
     all_dfs = []
     
     # Check if seeds folder exists
-    if not os.path.exists(SEEDS_FOLDER):
+    if not SEEDS_FOLDER.exists():
         st.warning(f"Seeds folder '{SEEDS_FOLDER}' not found. Please create it and add your CSV files.")
         return pd.DataFrame()
     
-    csv_files = glob.glob(os.path.join(SEEDS_FOLDER, "*.csv"))
+    csv_files = list(SEEDS_FOLDER.glob("*.csv"))
     
     if not csv_files:
         st.warning(f"No CSV files found in '{SEEDS_FOLDER}' folder.")
