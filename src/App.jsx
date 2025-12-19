@@ -403,9 +403,10 @@ export default function GSEApp() {
                            border: '1px solid #334155',
                            borderRadius: '8px'
                          }}
-                         labelFormatter={(val) => new Date(val).toLocaleDateString('en-GB', { 
-                           day: 'numeric', month: 'short', year: 'numeric' 
-                         })}
+                         labelFormatter={(val) => {
+                          const [year, month, day] = val.split('-');
+                          return `${parseInt(day)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(month)-1]} ${year}`;
+                          }}
                          formatter={(val) => [`GH₵ ${Number(val).toFixed(2)}`, 'Price']}
                        />
                        <Area 
