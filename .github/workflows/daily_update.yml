@@ -9,6 +9,9 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: write
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,7 +22,11 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install pandas
+        run: |
+          pip install pandas requests beautifulsoup4
+
+      - name: Scrape latest prices
+        run: python scripts/scrape_prices.py
 
       - name: Build data JSON
         run: python scripts/build_data.py
@@ -28,6 +35,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add public/gse_data.json
+          git add seeds/ public/gse_data.json
           git diff --quiet && git diff --staged --quiet || git commit -m "📊 Daily data update $(date +'%Y-%m-%d')"
           git push
