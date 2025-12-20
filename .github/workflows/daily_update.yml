@@ -1,10 +1,8 @@
 name: Daily Data Update
-
 on:
   schedule:
     - cron: '0 18 * * 1-5'
   workflow_dispatch:
-
 jobs:
   update-data:
     runs-on: ubuntu-latest
@@ -15,26 +13,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+          
       - name: Install Python dependencies
         run: |
-          pip install pandas requests beautifulsoup4
-
-      - name: Scrape latest prices
-        run: python scripts/scrape_prices.py
-
+          pip install pandas
+          
       - name: Build data JSON
         run: python scripts/build_data.py
-
+        
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add seeds/ public/gse_data.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "📊 Daily data update $(date +'%Y-%m-%d')"
+          git add public/gse_data.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Build JSON $(date +'%Y-%m-%d')"
+          git pull --rebase
           git push
