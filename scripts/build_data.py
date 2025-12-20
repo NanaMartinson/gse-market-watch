@@ -200,8 +200,8 @@ def build_stock_data(df, symbol):
     avg_vol_10d = int(stock_df.tail(10)['volume'].mean()) if len(stock_df) >= 10 else 0
     avg_vol_30d = int(stock_df.tail(30)['volume'].mean()) if len(stock_df) >= 30 else 0
     
-    # History (last 252 trading days = ~1 year)
-    history = stock_df.tail(504)[['date', 'close', 'volume', 'change', 'change_pct']].copy()
+    # History - ALL available data
+    history = stock_df[['date', 'close', 'volume', 'change', 'change_pct']].copy()
     history['date'] = history['date'].dt.strftime('%Y-%m-%d')
     
     # Build history list with changePercent
