@@ -5,6 +5,7 @@ Fetches current prices from dev.kwayisi.org API and updates the seed CSVs
 
 import pandas as pd
 import requests
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -13,8 +14,11 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
 SEEDS_FOLDER = PROJECT_ROOT / "seeds"
 
-# API URL (more reliable than scraping HTML)
-API_URL = "https://dev.kwayisi.org/apis/gse/live"
+# API endpoints to try (in order of preference)
+API_ENDPOINTS = [
+    "https://dev.kwayisi.org/apis/gse/live",
+    "https://dev.kwayisi.org/apis/gse/equities",
+]
 
 # Expected columns in seed CSVs
 SEED_COLUMNS = [
@@ -35,59 +39,80 @@ SEED_COLUMNS = [
 
 
 def fetch_current_prices():
-    """Fetch current prices from kwayisi GSE API"""
-    print(f"Fetching prices from {API_URL}...")
+    """Fetch current prices from kwayisi GSE API with retries"""
     
-    try:
-        headers = {
-            'User-Agent': 'GSE-Market-Watch/1.0',
-            'Accept': 'application/json'
-        }
-        response = requests.get(API_URL, headers=headers, timeout=30)
-        response.raise_for_status()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+    
+    for url in API_ENDPOINTS:
+        print(f"Trying {url}...")
         
-        data = response.json()
-        
-        if not isinstance(data, list):
-            print("Unexpected API response format")
-            return {}
-        
-        prices = {}
-        
-        for stock in data:
+        # Retry up to 3 times per endpoint
+        for attempt in range(3):
             try:
-                # API returns: {"name": "SYMBOL", "price": X.XX, "change": X.XX, "volume": XXX}
-                symbol = stock.get('name', '').strip().upper()
+                print(f"  Attempt {attempt + 1}/3...")
+                response = requests.get(url, headers=headers, timeout=90)
+                response.raise_for_status()
                 
-                if not symbol:
-                    continue
+                data = response.json()
                 
-                current_price = float(stock.get('price', 0))
-                change = float(stock.get('change', 0))
-                volume = int(stock.get('volume', 0))
+                if not isinstance(data, list):
+                    print(f"  Unexpected response format from {url}")
+                    break  # Try next endpoint
                 
-                if current_price <= 0:
-                    continue
+                prices = {}
                 
-                # Calculate previous close
-                prev_close = current_price - change
+                for stock in data:
+                    try:
+                        # API returns: {"name": "SYMBOL", "price": X.XX, "change": X.XX, "volume": XXX}
+                        symbol = stock.get('name', '').strip().upper()
+                        
+                        if not symbol:
+                            continue
+                        
+                        current_price = float(stock.get('price', 0))
+                        change = float(stock.get('change', 0))
+                        volume = int(stock.get('volume', 0))
+                        
+                        if current_price <= 0:
+                            continue
+                        
+                        # Calculate previous close
+                        prev_close = current_price - change
+                        
+                        prices[symbol] = {
+                            'price': current_price,
+                            'change': change,
+                            'prev_close': prev_close,
+                            'volume': volume
+                        }
+                        
+                    except (ValueError, TypeError, KeyError):
+                        continue
                 
-                prices[symbol] = {
-                    'price': current_price,
-                    'change': change,
-                    'prev_close': prev_close,
-                    'volume': volume
-                }
-                
-            except (ValueError, TypeError, KeyError) as e:
-                continue
-        
-        print(f"Successfully fetched {len(prices)} stock prices from API")
-        return prices
-        
-    except requests.RequestException as e:
-        print(f"Error fetching data from API: {e}")
-        return {}
+                if prices:
+                    print(f"  Successfully fetched {len(prices)} stock prices")
+                    return prices
+                else:
+                    print(f"  No valid prices in response")
+                    break  # Try next endpoint
+                    
+            except requests.exceptions.Timeout:
+                print(f"  Timeout on attempt {attempt + 1}")
+                if attempt < 2:
+                    print(f"  Waiting 10 seconds before retry...")
+                    time.sleep(10)
+            except requests.exceptions.RequestException as e:
+                print(f"  Error: {e}")
+                if attempt < 2:
+                    print(f"  Waiting 5 seconds before retry...")
+                    time.sleep(5)
+    
+    print("All endpoints failed")
+    return {}
 
 
 def update_seed_file(symbol, data, today_str):
@@ -107,7 +132,6 @@ def update_seed_file(symbol, data, today_str):
             seed_file = potential_file
     
     if not seed_file:
-        print(f"  No seed file found for {symbol}")
         return False
     
     try:
@@ -203,6 +227,7 @@ def main():
     print(f"\nUpdating seed files for {today_str}...")
     updated = 0
     skipped = 0
+    not_found = []
     
     for symbol, data in prices.items():
         # Check if we have a seed file for this symbol
@@ -224,10 +249,14 @@ def main():
                         found = True
                         break
             if not found:
-                print(f"  - {symbol}: No matching seed file")
-                skipped += 1
+                not_found.append(symbol)
     
-    print(f"\nSummary: {updated} updated, {skipped} skipped")
+    print(f"\nSummary:")
+    print(f"  Updated: {updated}")
+    print(f"  Skipped: {skipped}")
+    print(f"  No seed file: {len(not_found)}")
+    if not_found:
+        print(f"  Missing: {', '.join(not_found[:10])}{'...' if len(not_found) > 10 else ''}")
     print("Done!")
 
 
