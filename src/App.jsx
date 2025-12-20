@@ -111,11 +111,22 @@ export default function GSEApp() {
     if (!stock?.history) return [];
     
     const history = stock.history;
+    
+    // Handle YTD separately
+    if (timeRange === "YTD") {
+      const currentYear = new Date().getFullYear();
+      return history.filter(h => {
+        const year = new Date(h.date).getFullYear();
+        return year === currentYear;
+      });
+    }
+    
     const ranges = {
       "1M": 21,
       "3M": 63,
       "6M": 126,
       "1Y": 252,
+      "5Y": 1260,
       "ALL": history.length
     };
     
@@ -355,8 +366,8 @@ export default function GSEApp() {
               </div>
 
               {/* Time Range Selector */}
-              <div className="flex gap-2 mb-4">
-                {["1M", "3M", "6M", "1Y", "ALL"].map(range => (
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {["1M", "3M", "6M", "YTD", "1Y", "5Y", "ALL"].map(range => (
                   <button
                     key={range}
                     onClick={() => setTimeRange(range)}
@@ -403,10 +414,9 @@ export default function GSEApp() {
                            border: '1px solid #334155',
                            borderRadius: '8px'
                          }}
-                         labelFormatter={(val) => {
-                          const [year, month, day] = val.split('-');
-                          return `${parseInt(day)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(month)-1]} ${year}`;
-                          }}
+                         labelFormatter={(val) => new Date(val).toLocaleDateString('en-GB', { 
+                           day: 'numeric', month: 'short', year: 'numeric' 
+                         })}
                          formatter={(val) => [`GH₵ ${Number(val).toFixed(2)}`, 'Price']}
                        />
                        <Area 
