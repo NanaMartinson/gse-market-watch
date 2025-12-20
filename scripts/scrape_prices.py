@@ -1,22 +1,20 @@
 """
 GSE Daily Price Scraper
-Scrapes current prices from afx.kwayisi.org and updates the seed CSVs
+Fetches current prices from dev.kwayisi.org API and updates the seed CSVs
 """
 
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
-import re
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
 SEEDS_FOLDER = PROJECT_ROOT / "seeds"
 
-# Source URL
-URL = "https://afx.kwayisi.org/gse/"
+# API URL (more reliable than scraping HTML)
+API_URL = "https://dev.kwayisi.org/apis/gse/live"
 
 # Expected columns in seed CSVs
 SEED_COLUMNS = [
@@ -37,100 +35,58 @@ SEED_COLUMNS = [
 
 
 def fetch_current_prices():
-    """Scrape current prices from AFX Ghana"""
-    print(f"Fetching prices from {URL}...")
+    """Fetch current prices from kwayisi GSE API"""
+    print(f"Fetching prices from {API_URL}...")
     
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'GSE-Market-Watch/1.0',
+            'Accept': 'application/json'
         }
-        response = requests.get(URL, headers=headers, timeout=30)
+        response = requests.get(API_URL, headers=headers, timeout=30)
         response.raise_for_status()
         
-        soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table')
+        data = response.json()
         
-        if not table:
-            print("Could not find price table on page")
+        if not isinstance(data, list):
+            print("Unexpected API response format")
             return {}
         
         prices = {}
         
-        # Parse table rows
-        rows = table.find_all('tr')
-        print(f"Found {len(rows)} rows in table")
-        
-        for row in rows[1:]:  # Skip header
-            cols = row.find_all('td')
-            
-            if len(cols) >= 5:
-                try:
-                    # Extract symbol (first column, get the link text)
-                    symbol_elem = cols[0].find('a')
-                    if symbol_elem:
-                        symbol = symbol_elem.text.strip().upper()
-                    else:
-                        symbol = cols[0].text.strip().upper()
-                    
-                    # Skip if no valid symbol
-                    if not symbol or len(symbol) > 20:
-                        continue
-                    
-                    # Get company name (second column)
-                    name = cols[1].text.strip() if len(cols) > 1 else symbol
-                    
-                    # Parse price (usually column 4 or 5 depending on layout)
-                    price_text = None
-                    for i in [4, 3, 2]:
-                        if len(cols) > i:
-                            text = cols[i].text.strip().replace(',', '')
-                            # Check if it looks like a price
-                            if re.match(r'^[\d.]+$', text):
-                                price_text = text
-                                break
-                    
-                    if not price_text:
-                        continue
-                    
-                    current_price = float(price_text)
-                    
-                    # Try to get change
-                    change = 0.0
-                    if len(cols) > 5:
-                        change_text = cols[5].text.strip().replace(',', '').replace('+', '')
-                        try:
-                            change = float(change_text)
-                        except ValueError:
-                            change = 0.0
-                    
-                    # Calculate previous close
-                    prev_close = current_price - change
-                    
-                    # Try to get volume
-                    volume = 0
-                    if len(cols) > 7:
-                        vol_text = cols[7].text.strip().replace(',', '')
-                        try:
-                            volume = int(float(vol_text))
-                        except ValueError:
-                            volume = 0
-                    
-                    prices[symbol] = {
-                        'name': name,
-                        'price': current_price,
-                        'change': change,
-                        'prev_close': prev_close,
-                        'volume': volume
-                    }
-                    
-                except (ValueError, IndexError) as e:
+        for stock in data:
+            try:
+                # API returns: {"name": "SYMBOL", "price": X.XX, "change": X.XX, "volume": XXX}
+                symbol = stock.get('name', '').strip().upper()
+                
+                if not symbol:
                     continue
+                
+                current_price = float(stock.get('price', 0))
+                change = float(stock.get('change', 0))
+                volume = int(stock.get('volume', 0))
+                
+                if current_price <= 0:
+                    continue
+                
+                # Calculate previous close
+                prev_close = current_price - change
+                
+                prices[symbol] = {
+                    'price': current_price,
+                    'change': change,
+                    'prev_close': prev_close,
+                    'volume': volume
+                }
+                
+            except (ValueError, TypeError, KeyError) as e:
+                continue
         
-        print(f"Successfully parsed {len(prices)} stock prices")
+        print(f"Successfully fetched {len(prices)} stock prices from API")
         return prices
         
     except requests.RequestException as e:
-        print(f"Error fetching data: {e}")
+        print(f"Error fetching data from API: {e}")
         return {}
 
 
