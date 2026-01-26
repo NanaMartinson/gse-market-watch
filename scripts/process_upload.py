@@ -88,8 +88,11 @@ def update_seed_file(seed_file, row):
         if pd.isna(daily_date):
             return False
         
+        # Convert to string for comparison to handle type mismatches
+        daily_date_str = str(daily_date)
+        
         # Check for duplicate
-        if daily_date in seed_df['Daily Date'].values:
+        if daily_date_str in seed_df['Daily Date'].astype(str).values:
             return False
         
         # Prepend new row
