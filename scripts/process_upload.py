@@ -1,213 +1,106 @@
 """
-Process uploaded GSE CSV files and update seed files
-This script is run by GitHub Actions when CSV files are uploaded to uploads/ folder
+GSE CSV Upload Processor
+Processes uploaded GSE CSV files and updates individual seed files
 """
 
-import csv
+import pandas as pd
 import os
 from pathlib import Path
-from datetime import datetime
 
-# Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
-UPLOADS_FOLDER = PROJECT_ROOT / "uploads"
 SEEDS_FOLDER = PROJECT_ROOT / "seeds"
+UPLOADS_FOLDER = PROJECT_ROOT / "uploads"
 
-# Constants
-ASTERISK_SUFFIX = "ASTERISK"
-
-
-def clean_symbol(symbol):
-    """Remove asterisks from symbol names (e.g., **ALW** -> ALW, PBC** -> PBC)"""
-    if not symbol:
-        return symbol
-    return symbol.replace('*', '').strip()
-
-
-def find_seed_file(symbol, seeds_folder):
-    """
-    Find seed file for a symbol (case-insensitive match)
-    Returns Path object or None
-    """
-    if not symbol:
-        return None
+def process_uploads():
+    """Process all CSV files in the uploads folder"""
     
-    # Try exact match first
-    exact_match = seeds_folder / f"{symbol}.csv"
-    if exact_match.exists():
-        return exact_match
-    
-    # Try case-insensitive match
-    for file in seeds_folder.glob("*.csv"):
-        if file.stem.upper() == symbol.upper():
-            return file
-        # Also check for "Symbol Asterisk.csv" format
-        if file.stem.upper() == f"{symbol.upper()} {ASTERISK_SUFFIX}":
-            return file
-    
-    return None
-
-
-def read_existing_dates(seed_file):
-    """Read all existing dates from a seed file"""
-    dates = set()
-    try:
-        with open(seed_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                date = row.get('Daily Date', '').strip()
-                if date:
-                    dates.add(date)
-    except Exception as e:
-        print(f"  Warning: Could not read existing dates from {seed_file.name}: {e}")
-    return dates
-
-
-def prepend_row_to_seed(seed_file, row):
-    """Prepend a new row to the top of a seed file"""
-    try:
-        # Read existing header and content
-        with open(seed_file, 'r', encoding='utf-8') as f:
-            header_line = f.readline()
-            if not header_line:
-                # Empty file, write header and row
-                with open(seed_file, 'w', encoding='utf-8', newline='') as f:
-                    writer = csv.DictWriter(f, fieldnames=row.keys())
-                    writer.writeheader()
-                    writer.writerow(row)
-                return True
-            
-            # Get fieldnames from existing header
-            existing_fieldnames = header_line.strip().split(',')
-            # Clean quotes from fieldnames
-            existing_fieldnames = [f.strip('"') for f in existing_fieldnames]
-            
-            # Validate that row has compatible columns
-            if set(row.keys()) != set(existing_fieldnames):
-                print(f"  Warning: Column mismatch for {seed_file.name}")
-                # Use existing fieldnames and only include matching columns
-                fieldnames = existing_fieldnames
-            else:
-                fieldnames = existing_fieldnames
-            
-            rest_of_file = f.read()
-        
-        # Write new content with row prepended
-        with open(seed_file, 'w', encoding='utf-8', newline='') as f:
-            # Write header
-            f.write(header_line)
-            # Write new row
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writerow(row)
-            # Write existing rows
-            f.write(rest_of_file)
-        
-        return True
-    except Exception as e:
-        print(f"  Error prepending row to {seed_file.name}: {e}")
-        return False
-
-
-def process_csv_file(csv_file, seeds_folder):
-    """Process a single uploaded CSV file"""
-    print(f"\nProcessing: {csv_file.name}")
-    print("-" * 60)
-    
-    rows_processed = 0
-    rows_skipped = 0
-    
-    try:
-        with open(csv_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-        
-        # Process rows in reverse order so newest dates end up on top
-        for row in reversed(rows):
-            symbol_raw = row.get('Share Code', '').strip()
-            date = row.get('Daily Date', '').strip()
-            
-            # Skip rows with empty Share Code
-            if not symbol_raw:
-                rows_skipped += 1
-                continue
-            
-            # Clean symbol name
-            symbol = clean_symbol(symbol_raw)
-            
-            # Find matching seed file
-            seed_file = find_seed_file(symbol, seeds_folder)
-            if not seed_file:
-                print(f"  ⚠ No seed file found for symbol: {symbol} (raw: {symbol_raw})")
-                rows_skipped += 1
-                continue
-            
-            # Check for duplicate date
-            existing_dates = read_existing_dates(seed_file)
-            if date in existing_dates:
-                print(f"  ⏭ Skipped {symbol} {date} (already exists)")
-                rows_skipped += 1
-                continue
-            
-            # Prepend row to seed file
-            if prepend_row_to_seed(seed_file, row):
-                print(f"  ✓ Added {symbol} {date} to {seed_file.name}")
-                rows_processed += 1
-            else:
-                rows_skipped += 1
-        
-        print("-" * 60)
-        print(f"Total: {rows_processed} rows added, {rows_skipped} rows skipped\n")
-        return True
-        
-    except Exception as e:
-        print(f"Error processing {csv_file.name}: {e}")
-        return False
-
-
-def main():
-    print("=" * 60)
-    print("GSE CSV Upload Processor")
-    print("=" * 60)
-    print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # Check folders exist
     if not UPLOADS_FOLDER.exists():
-        print(f"\n✗ Uploads folder not found: {UPLOADS_FOLDER}")
+        print("No uploads folder found")
         return
     
-    if not SEEDS_FOLDER.exists():
-        print(f"\n✗ Seeds folder not found: {SEEDS_FOLDER}")
-        return
-    
-    # Find CSV files
     csv_files = list(UPLOADS_FOLDER.glob("*.csv"))
     if not csv_files:
-        print("\n✓ No CSV files to process")
+        print("No CSV files to process")
         return
     
-    print(f"\nFound {len(csv_files)} CSV file(s) to process")
+    print(f"Found {len(csv_files)} CSV file(s) to process")
     
-    # Process each CSV file
-    processed_files = []
+    total_updated = 0
+    
     for csv_file in csv_files:
-        if process_csv_file(csv_file, SEEDS_FOLDER):
-            processed_files.append(csv_file)
+        print(f"\nProcessing: {csv_file.name}")
+        try:
+            df = pd.read_csv(csv_file)
+            updated = process_file(df)
+            total_updated += updated
+            
+            # Delete processed file
+            os.remove(csv_file)
+            print(f"  Deleted: {csv_file.name}")
+            
+        except Exception as e:
+            print(f"  Error processing {csv_file.name}: {e}")
     
-    # Delete processed CSV files
-    if processed_files:
-        print("\nDeleting processed CSV files:")
-        for csv_file in processed_files:
-            try:
-                csv_file.unlink()
-                print(f"  ✓ Deleted {csv_file.name}")
-            except Exception as e:
-                print(f"  ✗ Could not delete {csv_file.name}: {e}")
-    
-    print("\n" + "=" * 60)
-    print("Processing complete!")
-    print("=" * 60)
+    print(f"\nTotal records updated: {total_updated}")
 
+def process_file(df):
+    """Process a single CSV file and update seed files"""
+    updated = 0
+    
+    # Process in reverse order so newest dates end up on top
+    for _, row in df.iloc[::-1].iterrows():
+        symbol = row.get('Share Code')
+        
+        # Skip empty symbols
+        if pd.isna(symbol) or str(symbol).strip() == '':
+            continue
+        
+        # Clean symbol (remove asterisks)
+        symbol = str(symbol)
+        clean_symbol = symbol.replace('*', '').strip()
+        
+        # Find matching seed file
+        seed_file = find_seed_file(symbol, clean_symbol)
+        if not seed_file:
+            continue
+        
+        # Check for duplicates and update
+        if update_seed_file(seed_file, row):
+            print(f"  Updated: {seed_file.stem} - {row.get('Daily Date')}")
+            updated += 1
+    
+    return updated
+
+def find_seed_file(symbol, clean_symbol):
+    """Find matching seed file (case-insensitive)"""
+    for f in SEEDS_FOLDER.glob("*.csv"):
+        if f.stem.upper() == symbol.upper() or f.stem.upper() == clean_symbol.upper():
+            return f
+    return None
+
+def update_seed_file(seed_file, row):
+    """Update a seed file with new data, checking for duplicates"""
+    try:
+        seed_df = pd.read_csv(seed_file)
+        
+        daily_date = row.get('Daily Date')
+        if pd.isna(daily_date):
+            return False
+        
+        # Check for duplicate
+        if daily_date in seed_df['Daily Date'].values:
+            return False
+        
+        # Prepend new row
+        new_row = pd.DataFrame([row])
+        seed_df = pd.concat([new_row, seed_df], ignore_index=True)
+        seed_df.to_csv(seed_file, index=False)
+        return True
+        
+    except Exception as e:
+        print(f"    Error updating {seed_file.name}: {e}")
+        return False
 
 if __name__ == "__main__":
-    main()
+    process_uploads()
