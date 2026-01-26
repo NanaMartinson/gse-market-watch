@@ -14,6 +14,9 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 UPLOADS_FOLDER = PROJECT_ROOT / "uploads"
 SEEDS_FOLDER = PROJECT_ROOT / "seeds"
 
+# Constants
+ASTERISK_SUFFIX = "ASTERISK"
+
 
 def clean_symbol(symbol):
     """Remove asterisks from symbol names (e.g., **ALW** -> ALW, PBC** -> PBC)"""
@@ -40,7 +43,7 @@ def find_seed_file(symbol, seeds_folder):
         if file.stem.upper() == symbol.upper():
             return file
         # Also check for "Symbol Asterisk.csv" format
-        if file.stem.upper() == f"{symbol.upper()} ASTERISK":
+        if file.stem.upper() == f"{symbol.upper()} {ASTERISK_SUFFIX}":
             return file
     
     return None
@@ -64,28 +67,41 @@ def read_existing_dates(seed_file):
 def prepend_row_to_seed(seed_file, row):
     """Prepend a new row to the top of a seed file"""
     try:
-        # Read existing content
+        # Read existing header and content
         with open(seed_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        
-        if not lines:
-            # Empty file, write header and row
-            with open(seed_file, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=row.keys())
-                writer.writeheader()
-                writer.writerow(row)
-            return True
+            header_line = f.readline()
+            if not header_line:
+                # Empty file, write header and row
+                with open(seed_file, 'w', encoding='utf-8', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=row.keys())
+                    writer.writeheader()
+                    writer.writerow(row)
+                return True
+            
+            # Get fieldnames from existing header
+            existing_fieldnames = header_line.strip().split(',')
+            # Clean quotes from fieldnames
+            existing_fieldnames = [f.strip('"') for f in existing_fieldnames]
+            
+            # Validate that row has compatible columns
+            if set(row.keys()) != set(existing_fieldnames):
+                print(f"  Warning: Column mismatch for {seed_file.name}")
+                # Use existing fieldnames and only include matching columns
+                fieldnames = existing_fieldnames
+            else:
+                fieldnames = existing_fieldnames
+            
+            rest_of_file = f.read()
         
         # Write new content with row prepended
         with open(seed_file, 'w', encoding='utf-8', newline='') as f:
             # Write header
-            f.write(lines[0])
+            f.write(header_line)
             # Write new row
-            writer = csv.DictWriter(f, fieldnames=row.keys())
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writerow(row)
             # Write existing rows
-            for line in lines[1:]:
-                f.write(line)
+            f.write(rest_of_file)
         
         return True
     except Exception as e:
