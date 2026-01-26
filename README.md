@@ -100,6 +100,48 @@ The GitHub Action (`.github/workflows/daily_update.yml`) runs daily at 6 PM UTC:
 
 To trigger manually: Go to Actions → Daily Data Update → Run workflow
 
+## Updating Stock Data with CSV Upload
+
+You can now automatically update stock data by uploading CSV files from the GSE website:
+
+### How to Use
+
+1. **Download CSV from GSE**: Get the latest CSV file from the Ghana Stock Exchange website
+
+2. **Upload to GitHub**: Push the CSV file to the `uploads/` folder:
+   ```bash
+   # Copy your downloaded CSV to the uploads folder
+   cp ~/Downloads/gse-data.csv uploads/
+   
+   # Commit and push
+   git add uploads/*.csv
+   git commit -m "Upload GSE data for $(date +'%Y-%m-%d')"
+   git push
+   ```
+
+3. **Automatic Processing**: The GitHub Action will:
+   - Read your uploaded CSV file
+   - Update the individual stock seed files in `seeds/`
+   - Skip duplicate dates automatically
+   - Regenerate `public/gse_data.json`
+   - Delete the uploaded CSV file
+   - Commit all changes back to the repository
+
+4. **Vercel Auto-Deploy**: Your site updates automatically with the new data
+
+### What the Workflow Does
+
+- **Cleans symbols**: Removes `*` characters (e.g., `**ALW**` → `ALW`)
+- **Finds matches**: Locates the correct seed file (case-insensitive)
+- **Prevents duplicates**: Skips rows with dates that already exist
+- **Maintains order**: Newest data appears at the top of seed files
+- **Logs everything**: Clear output showing what was updated
+
+### Manual Trigger
+
+If needed, you can trigger the workflow manually:
+- Go to Actions → Process GSE CSV Upload → Run workflow
+
 ## Adding New Stocks
 
 1. Add the CSV file to `seeds/` folder

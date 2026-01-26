@@ -1,0 +1,46 @@
+name: Process GSE CSV Upload
+
+on:
+  push:
+    paths:
+      - 'uploads/*.csv'
+  workflow_dispatch:
+
+jobs:
+  process-upload:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Python dependencies
+        run: |
+          pip install pandas
+          
+      - name: Process uploaded CSV files
+        run: python scripts/process_upload.py
+        
+      - name: Regenerate JSON data
+        run: python scripts/build_data.py
+        
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add seeds/*.csv public/gse_data.json
+          # Only add uploads directory if there are any changes (deleted files)
+          if [ -n "$(git status --porcelain uploads/)" ]; then
+            git add uploads/
+          fi
+          git diff --quiet && git diff --staged --quiet || git commit -m "Process uploaded CSV files $(date +'%Y-%m-%d %H:%M:%S')"
+          git pull --rebase
+          git push
