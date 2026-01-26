@@ -24,6 +24,8 @@ def clean_symbol(symbol):
 
 def find_seed_file(symbol, clean_sym):
     """Find matching seed file (case-insensitive)"""
+    if not clean_sym:
+        return None
     for seed_file in SEEDS_FOLDER.glob("*.csv"):
         stem = seed_file.stem.upper()
         # Try both original and cleaned symbol
@@ -47,6 +49,18 @@ def process_csv_file(csv_path):
         # Sort by date (oldest first) so we process chronologically
         # Parse dates to sort properly
         df['_parsed_date'] = pd.to_datetime(df['Daily Date'], format='%d/%m/%Y', errors='coerce')
+        
+        # Check for unparseable dates
+        invalid_dates = df[df['_parsed_date'].isna()]
+        if not invalid_dates.empty:
+            print(f"  ⚠️  Warning: Found {len(invalid_dates)} row(s) with invalid dates, skipping them")
+            for idx in invalid_dates.index:
+                date_val = df.loc[idx, 'Daily Date']
+                print(f"      Row {idx}: Invalid date '{date_val}'")
+        
+        # Filter out rows with invalid dates
+        df = df[df['_parsed_date'].notna()]
+        
         df = df.sort_values('_parsed_date')
         df = df.drop(columns=['_parsed_date'])
         
