@@ -100,47 +100,22 @@ The GitHub Action (`.github/workflows/daily_update.yml`) runs daily at 6 PM UTC:
 
 To trigger manually: Go to Actions → Daily Data Update → Run workflow
 
-## Updating Stock Data with CSV Upload
+## Easy Upload Method
 
-You can now automatically update stock data by uploading CSV files from the GSE website:
+You can update the stock data by uploading CSV files directly on GitHub:
 
-### How to Use
+1. Download the daily prices CSV from the GSE website
+2. Go to the [`uploads/`](./uploads) folder in this repository
+3. Click "Add file" → "Upload files"
+4. Drag and drop your CSV file(s)
+5. Click "Commit changes"
+6. The GitHub Action will automatically:
+   - Update all seed files
+   - Regenerate the JSON data
+   - Delete the uploaded CSV
+   - Deploy the changes
 
-1. **Download CSV from GSE**: Get the latest CSV file from the Ghana Stock Exchange website
-
-2. **Upload to GitHub**: Push the CSV file to the `uploads/` folder:
-   ```bash
-   # Copy your downloaded CSV to the uploads folder
-   cp ~/Downloads/gse-data.csv uploads/
-   
-   # Commit and push
-   git add uploads/*.csv
-   git commit -m "Upload GSE data for $(date +'%Y-%m-%d')"
-   git push
-   ```
-
-3. **Automatic Processing**: The GitHub Action will:
-   - Read your uploaded CSV file
-   - Update the individual stock seed files in `seeds/`
-   - Skip duplicate dates automatically
-   - Regenerate `public/gse_data.json`
-   - Delete the uploaded CSV file
-   - Commit all changes back to the repository
-
-4. **Vercel Auto-Deploy**: Your site updates automatically with the new data
-
-### What the Workflow Does
-
-- **Cleans symbols**: Removes `*` characters (e.g., `**ALW**` → `ALW`)
-- **Finds matches**: Locates the correct seed file (case-insensitive)
-- **Prevents duplicates**: Skips rows with dates that already exist
-- **Maintains order**: Newest data appears at the top of seed files
-- **Logs everything**: Clear output showing what was updated
-
-### Manual Trigger
-
-If needed, you can trigger the workflow manually:
-- Go to Actions → Process GSE CSV Upload → Run workflow
+Check the [Actions tab](../../actions) to monitor progress.
 
 ## Adding New Stocks
 
