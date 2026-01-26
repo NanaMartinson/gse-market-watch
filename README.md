@@ -91,6 +91,8 @@ Open http://localhost:5173
 
 ## Automated Updates
 
+### Daily Data Refresh
+
 The GitHub Action (`.github/workflows/daily_update.yml`) runs daily at 6 PM UTC:
 
 1. Pulls latest code
@@ -99,6 +101,33 @@ The GitHub Action (`.github/workflows/daily_update.yml`) runs daily at 6 PM UTC:
 4. Vercel auto-deploys the update
 
 To trigger manually: Go to Actions → Daily Data Update → Run workflow
+
+### CSV Upload Processing
+
+You can now upload GSE CSV files directly to GitHub instead of running scripts locally!
+
+**How to upload new data:**
+
+1. Download the CSV file(s) from the GSE website
+2. Go to your repository on GitHub.com
+3. Navigate to the `uploads/` folder
+4. Click **"Add file"** → **"Upload files"**
+5. Drag and drop your GSE CSV file(s)
+6. Click **"Commit changes"** (commit directly to main branch)
+7. Wait for the GitHub Action to process (check the **Actions** tab for status)
+
+**What happens automatically:**
+
+- The workflow reads all CSV files from `uploads/`
+- Updates the matching seed files in `seeds/` folder (skips duplicate dates)
+- Regenerates `public/gse_data.json`
+- Deletes the processed CSV files from `uploads/`
+- Commits and pushes all changes
+- Vercel auto-deploys the updated site
+
+**Supported formats:**
+- Single day files: `GSE Share Prices 5th January 2026.csv`
+- Multi-day files: `GSE Share Prices 7th to 16th January 2026.csv`
 
 ## Adding New Stocks
 

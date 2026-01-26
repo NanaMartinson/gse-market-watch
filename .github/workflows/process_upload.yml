@@ -1,0 +1,42 @@
+name: Process CSV Uploads
+
+on:
+  push:
+    paths:
+      - 'uploads/**'
+  workflow_dispatch:
+
+jobs:
+  process-uploads:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Python dependencies
+        run: |
+          pip install pandas
+          
+      - name: Process uploaded CSV files
+        run: python scripts/process_upload.py
+        
+      - name: Build data JSON
+        run: python scripts/build_data.py
+        
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add seeds/ public/gse_data.json uploads/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Process CSV uploads $(date +'%Y-%m-%d %H:%M')"
+          git pull --rebase
+          git push
