@@ -4,7 +4,7 @@ import { ArrowUp, ArrowDown, Download, Search, RefreshCw, TrendingUp, Activity, 
 
 // --- CONFIG ---
 // Ghana 91-day T-bill rate (update periodically)
-const RISK_FREE_RATE = 0.27; // 27% annualized
+const RISK_FREE_RATE = 0.111969; // 11.20% annualized (Jan 2026 GH 91-day T-bill)
 
 // --- COMPONENTS ---
 const Card = ({ children, className = "" }) => (
