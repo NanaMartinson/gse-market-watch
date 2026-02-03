@@ -136,6 +136,27 @@ You can now upload GSE CSV files directly to GitHub instead of running scripts l
 - Typical run takes ~30-60 seconds
 - **Note:** The `scrape_prices.py` script (which does make external API calls) is NOT used by any workflow
 
+## Resource Usage & Costs
+
+**GitHub Actions Minutes:**
+- Free tier: 2,000 minutes/month for public repositories
+- Each workflow run: ~30-60 seconds (0.5-1 minute)
+- You can run ~2,000+ workflows per month on the free tier
+- **Current workflows:**
+  - `process_upload.yml`: Triggers only when you upload CSV files
+  - `daily_update.yml`: Runs once per weekday (5× per week)
+  - Total monthly usage: ~22-44 minutes (5 weeks × 5 days × 1 minute) = **2%** of free tier
+
+**External API Calls:**
+- ✅ **NONE** - All workflows process files locally
+- The `scrape_prices.py` script exists but is **not used** by any automated workflow
+- You maintain full control over when/if to use external APIs
+
+**Cost Summary:**
+- GitHub Actions: **FREE** (well within free tier limits)
+- External APIs: **NONE** (not used by workflows)
+- Vercel hosting: **FREE** (Hobby plan sufficient)
+
 ## Adding New Stocks
 
 1. Add the CSV file to `seeds/` folder
