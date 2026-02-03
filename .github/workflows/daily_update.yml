@@ -1,4 +1,7 @@
 name: Daily Data Update
+# This workflow regenerates JSON from existing seed files - NO external API calls or costs
+# It only processes local CSV files and uses GitHub Actions free tier
+
 on:
   schedule:
     - cron: '0 18 * * 1-5'

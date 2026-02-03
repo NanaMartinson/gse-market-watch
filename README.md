@@ -129,6 +129,13 @@ You can now upload GSE CSV files directly to GitHub instead of running scripts l
 - Single day files: `GSE Share Prices 5th January 2026.csv`
 - Multi-day files: `GSE Share Prices 7th to 16th January 2026.csv`
 
+**💡 Cost-Free Operation:**
+- This workflow uses **NO external API calls** or premium services
+- It only processes local CSV files and commits to your repository
+- Uses GitHub Actions free tier (2,000 minutes/month for public repos)
+- Typical run takes ~30-60 seconds
+- **Note:** The `scrape_prices.py` script (which does make external API calls) is NOT used by any workflow
+
 ## Adding New Stocks
 
 1. Add the CSV file to `seeds/` folder

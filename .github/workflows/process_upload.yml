@@ -1,4 +1,6 @@
 name: Process CSV Uploads
+# This workflow processes uploaded CSV files locally - NO external API calls or premium services used
+# It only reads/writes files in the repository and uses GitHub Actions free tier
 
 on:
   push:

@@ -2,6 +2,9 @@
 Process uploaded GSE CSV files and update seed files.
 This script is designed to be run by GitHub Actions when CSV files
 are uploaded to the uploads/ folder.
+
+IMPORTANT: This script makes NO external API calls and uses NO premium services.
+It only reads/writes local CSV files in the repository.
 """
 
 import pandas as pd
